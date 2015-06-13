@@ -99,11 +99,10 @@ class MySQLKernel(Kernel):
             self.ch.expect(self.prompt)
             output = self.ch.before
         except KeyboardInterrupt:
-            self.sh.sendintr()
             self.ch.sendintr()
             self.ch.expect(self.prompt)
             interrupted = True
-            output = self.sh.before
+            output = self.ch.before
         except pexpect.EOF:
             output = self.ch.before + 'Restarting Process...'
             self._start_process()
