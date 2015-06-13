@@ -75,20 +75,27 @@ class MySQLKernel(Kernel):
     def do_execute(self, code, silent, store_history=True,
                    user_expressions=None, allow_stdin=False):
 
-        code = code.replace("\n"," ").strip()
-
-        if not code:
+        if not code.strip():
             return {'status': 'ok',
                     'execution_count': self.execution_count,
                     'payload': [],
                     'user_expressions': {}}
 
-        if code[-1] != ";":
-            code = code + ";"
+        mes = ""
+        for c in code.split("\n"):
+            c = c.strip()
+            if len(c) > 0:
+                if c[0] == "#":
+                    #skip comment
+                    continue
+                mes += c + " "
+        mes = mes.strip()
+        if mes[-1] != ";":
+            mes += ";"
 
         interrupted = False
         try:
-            self.ch.sendline(code)
+            self.ch.sendline(mes)
             self.ch.expect(self.prompt)
             output = self.ch.before
         except KeyboardInterrupt:
@@ -102,8 +109,8 @@ class MySQLKernel(Kernel):
         res = output.decode(self.mysql_config["charset"])
         # remove echo string
         # TODO: can't I disable echo?
-        if res.find(code) == 0:
-            res = res[len(code):]
+        if res.find(mes) == 0:
+            res = res[len(mes):]
 
         if not silent:
             stream_content = {'name': 'stdout', 'text': res}
