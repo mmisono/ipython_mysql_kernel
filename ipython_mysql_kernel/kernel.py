@@ -24,7 +24,11 @@ class MySQLKernel(Kernel):
     implementation_version = '0.1'
     language = 'mysql'
     language_version = '0.1'
-    language_info = {'mimetype': 'text/plain'}
+    language_info = {
+            'mimetype': 'text/plain',
+            'name': 'mysql',
+            'file_extension': '.sql',
+            }
     banner = "MySQL kernel"
 
     mysql_setting_file = os.path.join(os.path.expanduser("~"),
