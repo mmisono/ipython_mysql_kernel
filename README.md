@@ -2,10 +2,10 @@
 
 ![screenshot](https://raw.githubusercontent.com/wiki/mmisono/ipython_mysql_kernel/images/screenshot.png "screenshot")
 
-This requires IPython 3, pyexpect.  
+This requires IPython 3, pexpect.  
 This kernel interact with [MySQL Command-Line
 Tool](https://dev.mysql.com/doc/refman/5.5/en/mysql.html) via
-[pyexpect](https://github.com/pexpect/pexpect).
+[pexpect](https://github.com/pexpect/pexpect).
 
 ## Install
 * Use pip: `pip install git+https://github.com/mmisono/ipython_mysql_kernel`
