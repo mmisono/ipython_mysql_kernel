@@ -2,11 +2,13 @@
 
 import json
 import os
+import re
 import signal
 
 from IPython.kernel.zmq.kernelbase import Kernel
 import pexpect
 
+# keywords for completion
 WORDS_LIST = [\
 "ABS",
 "ACOS",
@@ -130,6 +132,7 @@ WORDS_LIST = [\
 "IN",
 "INET_ATON",
 "INET_NTOA",
+"INNER",
 "INSERT",
 "INSTR",
 "INTERVAL",
@@ -140,6 +143,7 @@ WORDS_LIST = [\
 "ISCLOSED",
 "ISEMPTY",
 "ISSIMPLE",
+"JOIN",
 "LAST_DAY",
 "LAST_INSERT_ID",
 "LCASE",
@@ -344,6 +348,10 @@ class MySQLKernel(Kernel):
         Kernel.__init__(self, **kwargs)
         self.prompt = prompt
         self._start_process()
+        self.table_names = []
+        self.use_pat1 = re.compile(r"use\s+(?P<schema>[a-z0-9_]+)\s*;")
+        self.use_pat2 = re.compile(r"\\u\s+(?P<schema>[a-z0-9_]+)\s*")
+        self.schema_pat = re.compile(r"[a-z0-9_]+")
 
     def _start_process(self):
         if os.path.exists(self.mysql_setting_file):
@@ -374,6 +382,9 @@ class MySQLKernel(Kernel):
 
     def do_execute(self, code, silent, store_history=True,
                    user_expressions=None, allow_stdin=False):
+        """Send SQL code to MySQL Commandline Tool via pexpect and get result
+           If code is `use XXX;` reads table information for completion.
+        """
 
         if not code.strip():
             return {'status': 'ok',
@@ -390,8 +401,16 @@ class MySQLKernel(Kernel):
                     continue
                 mes += c + " "
         mes = mes.strip()
-        if mes[-1] != ";":
+        if mes[0] != "\\" and mes[-1] != ";":
             mes += ";"
+
+        # get table name for completion
+        mat = self.use_pat1.match(mes.lower())
+        if mat is None:
+            mat = self.use_pat2.match(mes.lower())
+        if mat is not None:
+            schema_name = mat.group("schema")
+            self.table_names = self._get_table_name(schema_name)
 
         interrupted = False
         try:
@@ -445,13 +464,62 @@ class MySQLKernel(Kernel):
 
         token = tokens[-1]
         start = cursor_pos - len(token)
-        matches = [w for w in WORDS_LIST if w.startswith(token.upper())]
+        matches = [w for w in self.table_names if w.startswith(token.upper())]
+        matches.extend([w for w in WORDS_LIST if w.startswith(token.upper())])
         if token.islower():
             matches = [m.lower() for m in matches]
 
         return {'matches': sorted(matches), 'cursor_start': start,
                 'cursor_end': cursor_pos, 'metadata': dict(),
                 'status': 'ok'}
+
+    def _get_table_name(self, schema_name):
+        """Get table name on the schema
+        """
+        schema_name = schema_name.strip().lower()
+        if self.schema_pat.match(schema_name) == None:
+            # invalid schema name
+            return []
+
+        # get all table name
+        # query = """
+        #     select distinct(table_name)
+        #     from information_schema.columns
+        #     where table_schema not in
+        #     ('information_schema', 'performance_schema', 'mysql')\G
+        #     """
+        query = """
+            select distinct(table_name)
+            from information_schema.columns
+            where table_schema = "{schema}"\G
+            """.format(schema = schema_name)
+
+        try:
+            self.ch.sendline(query.replace('\n',' '))
+            self.ch.expect(self.prompt)
+        except KeyboardInterrupt:
+            self.ch.sendintr()
+            self.ch.expect(self.prompt)
+            return []
+        except pexpect.EOF:
+            #XXX: error handling
+            return []
+
+        # parse output
+        res = self.ch.before.decode(self.mysql_config["charset"])
+        l = res.split('\n')
+        i = 0
+        table_names = []
+        while i < len(l):
+            if len(l[i]) > 0:
+                if l[i][0] == '*':
+                    i += 1
+                    pos = l[i].find("table_name:")
+                    if pos != -1:
+                        table_names.append(l[i][pos+len("table_name:"):].strip().upper())
+            i += 1
+
+        return sorted(table_names)
 
 
 if __name__ == '__main__':
