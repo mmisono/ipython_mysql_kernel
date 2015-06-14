@@ -60,11 +60,22 @@ You can specify "password" if needed. The permission of this file should be set 
 div .output_subarea pre { /* output font */
     font-family: Osaka-Mono, "MS Gothic", monospace;
     font-size: 12pt;
+    overflow: auto;
+    word-wrap: normal;
+    white-space: pre;
 }
 ```
 
+`overflow` option is needed for horizontal scroll bar in the output area;
+
 ## TODO
-* completion
+* flexible config change
+* better completion (field completion)
+* syntax check
+* helper command
 
 ## License
 new BSD license
+
+## Alternatives
+* [ipydb](https://github.com/jaysw/ipydb)
