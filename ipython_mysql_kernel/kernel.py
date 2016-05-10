@@ -352,6 +352,11 @@ class MySQLKernel(Kernel):
         self.use_pat1 = re.compile(r"use\s+(?P<schema>[a-z0-9_]+)\s*;")
         self.use_pat2 = re.compile(r"\\u\s+(?P<schema>[a-z0-9_]+)\s*")
         self.schema_pat = re.compile(r"[a-z0-9_]+")
+        self.tail_pat = re.compile(r"(.*?)(;|\\g|\\G)\s*$")
+        self.select_pat = re.compile(r"^\s*select.*",flags=re.IGNORECASE)
+        if "select_limit" in self.mysql_config:
+            self.select_limit = int(self.mysql_config["select_limit"])
+            self.select_limit_pat = re.compile(r".*?limit\s+\d+\s*$",flags=re.IGNORECASE) # NOTE: no ; or \g or \G
 
     def _start_process(self):
         if os.path.exists(self.mysql_setting_file):
@@ -385,6 +390,7 @@ class MySQLKernel(Kernel):
         """Send SQL code to MySQL Commandline Tool via pexpect and get result
            If code is `use XXX;` reads table information for completion.
         """
+        error_msg = []
 
         if not code.strip():
             return {'status': 'ok',
@@ -401,8 +407,25 @@ class MySQLKernel(Kernel):
                     continue
                 mes += c + " "
         mes = mes.strip()
-        if mes[0] != "\\" and mes[-1] != ";":
-            mes += ";"
+
+        if mes[0] != "\\":
+            mat = self.tail_pat.match(mes)
+            if mat is None:
+                tail = ";"
+            else:
+                mes = mat.group(1) # remove tail char
+                tail = mat.group(2)
+
+            # auto limit
+            mat = self.select_pat.match(mes)
+            if mat is not None and "select_limit" in self.mysql_config:
+                mat = self.select_limit_pat.match(mes)
+                if mat is None:
+                    mes += " limit {}".format(self.select_limit)
+                    error_msg.append("Auto select limit {}".format(self.select_limit))
+
+            mes += tail # add tail char
+            error_msg.append("{}".format(mes))
 
         # get table name for completion
         mat = self.use_pat1.match(mes.lower())
@@ -433,6 +456,8 @@ class MySQLKernel(Kernel):
             res = res[len(mes):]
 
         if not silent:
+            for e in error_msg[::-1]:
+                res = e+"\n"+res
             stream_content = {'name': 'stdout', 'text': res}
             self.send_response(self.iopub_socket, 'stream', stream_content)
 
@@ -516,7 +541,8 @@ class MySQLKernel(Kernel):
                     i += 1
                     pos = l[i].find("table_name:")
                     if pos != -1:
-                        table_names.append(l[i][pos+len("table_name:"):].strip().upper())
+                        #table_names.append(l[i][pos+len("table_name:"):].strip().upper())
+                        table_names.append(l[i][pos+len("table_name:"):].strip())
             i += 1
 
         return sorted(table_names)
