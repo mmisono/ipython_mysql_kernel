@@ -338,15 +338,19 @@ class MySQLKernel(Kernel):
     mysql_setting_file = os.path.join(os.path.expanduser("~"),
                                      ".ipython/mysql_config.json")
     mysql_config = {
+       "prompt"   : "mysql> ",
        "user"     : "root",
        "host"     : "127.0.0.1",
        "port"     : "3306",
        "charset"  : "utf8"
     }
 
-    def __init__(self, prompt="mysql> ", **kwargs):
+    def __init__(self, **kwargs):
         Kernel.__init__(self, **kwargs)
-        self.prompt = prompt
+        if os.path.exists(self.mysql_setting_file):
+            with open(self.mysql_setting_file,"r") as f:
+                self.mysql_config.update(json.load(f))
+        self.prompt = self.mysql_config["prompt"]
         self._start_process()
         self.table_names = []
         self.use_pat1 = re.compile(r"use\s+(?P<schema>[a-z0-9_]+)\s*;")
@@ -359,10 +363,6 @@ class MySQLKernel(Kernel):
             self.select_limit_pat = re.compile(r".*?limit\s+\d+\s*$",flags=re.IGNORECASE) # NOTE: no ; or \g or \G
 
     def _start_process(self):
-        if os.path.exists(self.mysql_setting_file):
-            with open(self.mysql_setting_file,"r") as f:
-                self.mysql_config.update(json.load(f))
-
         # make childprocess interuptible by SIGINT
         sig = signal.signal(signal.SIGINT, signal.SIG_DFL)
         try:
