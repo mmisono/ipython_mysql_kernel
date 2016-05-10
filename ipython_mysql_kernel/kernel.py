@@ -425,7 +425,7 @@ class MySQLKernel(Kernel):
                     error_msg.append("Auto select limit {}".format(self.select_limit))
 
             mes += tail # add tail char
-            error_msg.append("{}".format(mes))
+            #error_msg.append("{}".format(mes))
 
         # get table name for completion
         mat = self.use_pat1.match(mes.lower())
