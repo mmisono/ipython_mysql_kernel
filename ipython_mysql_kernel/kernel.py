@@ -425,7 +425,7 @@ class MySQLKernel(Kernel):
                     error_msg.append("Auto select limit {}".format(self.select_limit))
 
             mes += tail # add tail char
-            #error_msg.append("{}".format(mes))
+            error_msg.append("{}".format(mes))
 
         # get table name for completion
         mat = self.use_pat1.match(mes.lower())
@@ -454,6 +454,12 @@ class MySQLKernel(Kernel):
         # TODO: can't I disable echo?
         if res.find(mes) == 0:
             res = res[len(mes):]
+        if res.find("> "+mes) == 0:
+            res = res[len("> "+mes):]
+        if tail == ";":
+           pos = res.find("+")
+           if pos > 0:
+             res = res[pos:]
 
         if not silent:
             for e in error_msg[::-1]:
