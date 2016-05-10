@@ -380,10 +380,10 @@ class MySQLKernel(Kernel):
             self.ch.waitnoecho()
 
         if "password" in self.mysql_config:
-            self.ch.expect('Enter password: ')
+            self.ch.expect_exact('Enter password: ')
             self.ch.sendline(self.mysql_config["password"])
 
-        self.ch.expect(self.prompt)
+        self.ch.expect_exact(self.prompt)
 
     def do_execute(self, code, silent, store_history=True,
                    user_expressions=None, allow_stdin=False):
@@ -438,11 +438,11 @@ class MySQLKernel(Kernel):
         interrupted = False
         try:
             self.ch.sendline(mes)
-            self.ch.expect(self.prompt)
+            self.ch.expect_exact(self.prompt)
             output = self.ch.before
         except KeyboardInterrupt:
             self.ch.sendintr()
-            self.ch.expect(self.prompt)
+            self.ch.expect_exact(self.prompt)
             interrupted = True
             output = self.ch.before
         except pexpect.EOF:
@@ -521,10 +521,10 @@ class MySQLKernel(Kernel):
 
         try:
             self.ch.sendline(query.replace('\n',' '))
-            self.ch.expect(self.prompt)
+            self.ch.expect_exact(self.prompt)
         except KeyboardInterrupt:
             self.ch.sendintr()
-            self.ch.expect(self.prompt)
+            self.ch.expect_exact(self.prompt)
             return []
         except pexpect.EOF:
             #XXX: error handling
